@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI 감정 케어 다이어리</title>
+  <!-- Pretendard 폰트 CDN -->
+  <link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+  <style>
+    :root {
+      --primary-color: #5c8d89;
+      --primary-hover: #48726e;
+      --bg-color: #f4f7f6;
+      --card-bg: #ffffff;
+      --text-color: #2d3748;
+      --border-color: #e2e8f0;
+      --disabled-bg: #edf2f7;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 20px 12px;
+    }
+
+    /* 600px 카드 레이아웃 */
+    .app-container {
+      width: 100%;
+      max-width: 600px;
+      background: var(--card-bg);
+      border-radius: 20px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* 상단 헤더 & API 키 입력란 */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .app-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--primary-color);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .api-key-container {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .api-key-input {
+      width: 140px;
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      font-size: 0.85rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .api-key-input:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(92, 141, 137, 0.15);
+    }
+
+    /* 캘린더 세션 */
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+    }
+
+    .month-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .nav-btn {
+      background: none;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
+      color: var(--primary-color);
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .nav-btn:hover {
+      background-color: #eef5f4;
+      border-color: var(--primary-color);
+    }
+
+    .weekdays-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      text-align: center;
+      font-weight: 600;
+      font-size: 0.85rem;
+      color: #889998;
+      margin-bottom: 8px;
+    }
+
+    .days-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 6px;
+    }
+
+    .day-cell {
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      background: #f9fbfb;
+      border: 1px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .day-cell:not(.disabled):not(.empty):hover {
+      background-color: #eef5f4;
+      border-color: var(--primary-color);
+    }
+
+    .day-cell.today {
+      border: 2px solid var(--primary-color);
+      font-weight: 700;
+    }
+
+    /* 일기가 작성된 날짜 (초록색 배경) */
+    .day-cell.has-entry {
+      background-color: var(--primary-color) !important;
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    /* 선택된 날짜 테두리 강조 */
+    .day-cell.selected {
+      box-shadow: 0 0 0 2px #2d3748;
+    }
+
+    /* 미래 날짜 차단 */
+    .day-cell.disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      background-color: var(--disabled-bg);
+    }
+
+    .day-cell.empty {
+      background: transparent;
+      cursor: default;
+    }
+
+    /* 다이어리 작성 및 결과 섹션 */
+    .diary-section {
+      border-top: 1px solid var(--border-color);
+      padding-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .section-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .selected-date {
+      font-size: 1rem;
+      font-weight: 700;
+      color: var(--primary-color);
+    }
+
+    .diary-textarea {
+      width: 100%;
+      height: 120px;
+      padding: 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      resize: vertical;
+      font-size: 0.95rem;
+      line-height: 1.5;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .diary-textarea:focus {
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(92, 141, 137, 0.15);
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 8px;
+    }
+
+    .btn-submit {
+      flex: 1;
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .btn-submit:hover {
+      background-color: var(--primary-hover);
+    }
+
+    .btn-submit:disabled {
+      background-color: #b0c4c2;
+      cursor: not-allowed;
+    }
+
+    .btn-delete {
+      background-color: #fff0f0;
+      color: #e53935;
+      border: 1px solid #ffcdd2;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+
+    .btn-delete:hover {
+      background-color: #ffebee;
+    }
+
+    .status-msg {
+      font-size: 0.9rem;
+      color: var(--primary-color);
+      font-weight: 600;
+      text-align: center;
+      min-height: 20px;
+    }
+
+    .result-box {
+      background-color: #f4f8f7;
+      border: 1px solid #e0ecea;
+      border-radius: 12px;
+      padding: 16px;
+      white-space: pre-wrap;
+      line-height: 1.6;
+      font-size: 0.95rem;
+      color: var(--text-color);
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <!-- 헤더 -->
+    <header class="header">
+      <h1 class="app-title">🌿 감정 케어 다이어리</h1>
+      <div class="api-key-container">
+        <input 
+          type="password" 
+          id="apiKeyInput" 
+          class="api-key-input" 
+          placeholder="Gemini API Key"
+        />
+      </div>
+    </header>
+
+    <!-- 캘린더 영역 -->
+    <main>
+      <div class="calendar-header">
+        <button id="prevMonth" class="nav-btn">&lt;</button>
+        <span id="monthYearTitle" class="month-title"></span>
+        <button id="nextMonth" class="nav-btn">&gt;</button>
+      </div>
+
+      <div class="weekdays-grid">
+        <div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div>
+      </div>
+
+      <div id="calendarGrid" class="days-grid"></div>
+    </main>
+
+    <!-- 일기 작성 및 AI 결과 섹션 -->
+    <section class="diary-section">
+      <div class="section-header">
+        <span id="selectedDateTitle" class="selected-date"></span>
+      </div>
+
+      <textarea 
+        id="diaryInput" 
+        class="diary-textarea" 
+        placeholder="오늘 어떤 일이 있으셨나요? 마음을 자유롭게 털어놓아 보세요..."
+      ></textarea>
+
+      <div class="btn-group">
+        <button id="saveBtn" class="btn-submit">AI 상담 받기 및 저장</button>
+        <button id="deleteBtn" class="btn-delete" style="display: none;">삭제</button>
+      </div>
+
+      <div id="statusMsg" class="status-msg"></div>
+      <div id="resultBox" class="result-box"></div>
+    </section>
+  </div>
+
+  <script>
+    // --- DOM 요소 ---
+    const apiKeyInput = document.getElementById('apiKeyInput');
+    const monthYearTitle = document.getElementById('monthYearTitle');
+    const calendarGrid = document.getElementById('calendarGrid');
+    const prevMonthBtn = document.getElementById('prevMonth');
+    const nextMonthBtn = document.getElementById('nextMonth');
+    const selectedDateTitle = document.getElementById('selectedDateTitle');
+    const diaryInput = document.getElementById('diaryInput');
+    const saveBtn = document.getElementById('saveBtn');
+    const deleteBtn = document.getElementById('deleteBtn');
+    const statusMsg = document.getElementById('statusMsg');
+    const resultBox = document.getElementById('resultBox');
+
+    // --- 날짜 상태 ---
+    const now = new Date();
+    const todayStr = formatDateStr(now.getFullYear(), now.getMonth(), now.getDate());
+
+    let viewYear = now.getFullYear();
+    let viewMonth = now.getMonth(); // 0 ~ 11
+    let selectedDateStr = todayStr;
+
+    // --- 초기화 ---
+    init();
+
+    function init() {
+      // API 키 불러오기
+      const savedApiKey = localStorage.getItem('geminiApiKey');
+      if (savedApiKey) {
+        apiKeyInput.value = savedApiKey;
+      }
+
+      // API 키 저장 이벤트
+      apiKeyInput.addEventListener('input', (e) => {
+        localStorage.setItem('geminiApiKey', e.target.value.trim());
+      });
+
+      // 월 이동 버튼 이벤트
+      prevMonthBtn.addEventListener('click', () => {
+        viewMonth--;
+        if (viewMonth < 0) {
+          viewMonth = 11;
+          viewYear--;
+        }
+        renderCalendar();
+      });
+
+      nextMonthBtn.addEventListener('click', () => {
+        viewMonth++;
+        if (viewMonth > 11) {
+          viewMonth = 0;
+          viewYear++;
+        }
+        renderCalendar();
+      });
+
+      // 저장 / AI 상담 버튼 이벤트
+      saveBtn.addEventListener('click', handleSaveAndCounseling);
+
+      // 삭제 버튼 이벤트
+      deleteBtn.addEventListener('click', handleDelete);
+
+      // 초기 캘린더 및 데이터 로드
+      renderCalendar();
+      loadDateData(selectedDateStr);
+    }
+
+    // YYYY-MM-DD 포맷 변환 함수
+    function formatDateStr(year, month, day) {
+      const y = year;
+      const m = String(month + 1).padStart(2, '0');
+      const d = String(day).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    }
+
+    // 캘린더 랜더링
+    function renderCalendar() {
+      calendarGrid.innerHTML = '';
+      monthYearTitle.textContent = `${viewYear}년 ${viewMonth + 1}월`;
+
+      const firstDayIndex = new Date(viewYear, viewMonth, 1).getDay();
+      const lastDate = new Date(viewYear, viewMonth + 1, 0).getDate();
+
+      // 지난달 빈 칸 생성
+      for (let i = 0; i < firstDayIndex; i++) {
+        const emptyCell = document.createElement('div');
+        emptyCell.className = 'day-cell empty';
+        calendarGrid.appendChild(emptyCell);
+      }
+
+      // 날짜 셀 생성
+      for (let day = 1; day <= lastDate; day++) {
+        const dateStr = formatDateStr(viewYear, viewMonth, day);
+        const cell = document.createElement('div');
+        cell.className = 'day-cell';
+        cell.textContent = day;
+
+        // 오늘 표시
+        if (dateStr === todayStr) {
+          cell.classList.add('today');
+        }
+
+        // 선택된 날짜 표시
+        if (dateStr === selectedDateStr) {
+          cell.classList.add('selected');
+        }
+
+        // 일기 데이터 존재 여부 확인
+        if (localStorage.getItem(dateStr)) {
+          cell.classList.add('has-entry');
+        }
+
+        // 미래 날짜 차단 조건
+        if (dateStr > todayStr) {
+          cell.classList.add('disabled');
+        } else {
+          cell.addEventListener('click', () => {
+            selectedDateStr = dateStr;
+            renderCalendar();
+            loadDateData(selectedDateStr);
+          });
+        }
+
+        calendarGrid.appendChild(cell);
+      }
+    }
+
+    // 선택된 날짜 데이터 로드
+    function loadDateData(dateStr) {
+      selectedDateTitle.textContent = `${dateStr} 의 일기`;
+      statusMsg.textContent = '';
+      
+      const rawData = localStorage.getItem(dateStr);
+      if (rawData) {
+        try {
+          const parsed = JSON.parse(rawData);
+          diaryInput.value = parsed.text || '';
+          resultBox.textContent = parsed.result || '';
+          resultBox.style.display = 'block';
+          deleteBtn.style.display = 'inline-block';
+        } catch (e) {
+          diaryInput.value = '';
+          resultBox.style.display = 'none';
+          deleteBtn.style.display = 'none';
+        }
+      } else {
+        diaryInput.value = '';
+        resultBox.textContent = '';
+        resultBox.style.display = 'none';
+        deleteBtn.style.display = 'none';
+      }
+    }
+
+    // AI 상담 요청 및 일기 저장
+    async function handleSaveAndCounseling() {
+      const text = diaryInput.value.trim();
+      if (!text) {
+        alert('일기 내용을 작성해 주세요.');
+        return;
+      }
+
+      const apiKey = apiKeyInput.value.trim();
+      if (!apiKey) {
+        alert('상단 우측에 Gemini API 키를 입력해 주세요.');
+        apiKeyInput.focus();
+        return;
+      }
+
+      saveBtn.disabled = true;
+      deleteBtn.style.display = 'none';
+      resultBox.style.display = 'none';
+
+      try {
+        const aiResponse = await fetchGeminiWithRetry(apiKey, text);
+        
+        if (aiResponse) {
+          // localStorage 저장 { text, result }
+          const diaryObj = { text: text, result: aiResponse };
+          localStorage.setItem(selectedDateStr, JSON.stringify(diaryObj));
+
+          statusMsg.textContent = '✨ AI의 마음 케어 답변이 도착했습니다.';
+          renderCalendar();
+          loadDateData(selectedDateStr);
+        }
+      } catch (err) {
+        statusMsg.textContent = `⚠️ 오류가 발생했습니다: ${err.message}`;
+      } finally {
+        saveBtn.disabled = false;
+      }
+    }
+
+    // Gemini API 연동 및 Retry 로직 (최대 3회 재시도, 2초 간격)
+    async function fetchGeminiWithRetry(apiKey, diaryText) {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
+      
+      const prompt = `너는 뇌과학 지식이 있는 심리 상담가야. 다음 일기를 읽고 '[공감의 말]', '[오늘의 감정]', '[추천 콘텐츠]' 양식으로 답해줘.\n\n[일기 내용]\n${diaryText}`;
+
+      const payload = {
+        contents: [
+          {
+            parts: [{ text: prompt }]
+          }
+        ]
+      };
+
+      const maxRetries = 3;
+
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+          if (attempt > 1) {
+            statusMsg.textContent = `서버 혼잡... 자동 재시도 중 (${attempt - 1}/${maxRetries - 1})`;
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+          } else {
+            statusMsg.textContent = 'AI가 일기를 다정하게 읽고 있습니다...';
+          }
+
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+
+          if (!response.ok) {
+            const errJson = await response.json().catch(() => ({}));
+            throw new Error(errJson.error?.message || `요청 실패 (코드: ${response.status})`);
+          }
+
+          const data = await response.json();
+          const rawResult = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+          if (!rawResult) {
+            throw new Error('응답 데이터를 받아오지 못했습니다.');
+          }
+
+          // ✨ 마크다운 굵은 글씨 기호(**) 정규식 제거
+          const cleanedResult = rawResult.replace(/\*\*/g, '');
+          return cleanedResult;
+
+        } catch (error) {
+          console.warn(`[Gemini API Attempt ${attempt}] Error:`, error);
+          if (attempt === maxRetries) {
+            throw new Error(`3회 재시도 후에도 요청에 실패했습니다. (${error.message})`);
+          }
+        }
+      }
+    }
+
+    // 삭제 처리
+    function handleDelete() {
+      if (confirm(`${selectedDateStr}의 일기를 삭제하시겠습니까?`)) {
+        localStorage.removeItem(selectedDateStr);
+        renderCalendar();
+        loadDateData(selectedDateStr);
+      }
+    }
+  </script>
+</body>
+</html>
